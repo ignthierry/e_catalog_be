@@ -163,13 +163,42 @@ class ProductController extends Controller
         // Add variants
         if (!empty($validated['variants']) && is_array($validated['variants'])) {
             foreach ($validated['variants'] as $v) {
-                $product->variants()->create([
-                    'sku' => $v['sku'] ?? Str::upper(Str::random(8)),
-                    'name' => $v['name'],
-                    'additional_price' => $v['additional_price'] ?? 0,
-                    'stock' => $v['stock'] ?? 10,
-                    'image' => $v['image'] ?? null,
-                ]);
+                if (is_array($v) && isset($v['items']) && is_array($v['items'])) {
+                    foreach ($v['items'] as $item) {
+                        $itemName = is_array($item) ? ($item['name'] ?? '') : (string) $item;
+                        $addPrice = is_array($item) ? ($item['additional_price'] ?? ($item['additionalPrice'] ?? 0)) : 0;
+                        if (trim($itemName) !== '') {
+                            $product->variants()->create([
+                                'sku' => Str::upper(Str::random(8)),
+                                'name' => trim($itemName),
+                                'additional_price' => (float) $addPrice,
+                                'stock' => (int) ($validated['stock'] ?? 10),
+                            ]);
+                        }
+                    }
+                } elseif (is_array($v) && isset($v['options']) && is_array($v['options'])) {
+                    foreach ($v['options'] as $opt) {
+                        if (trim($opt) !== '') {
+                            $product->variants()->create([
+                                'sku' => Str::upper(Str::random(8)),
+                                'name' => trim((string) $opt),
+                                'additional_price' => 0,
+                                'stock' => (int) ($validated['stock'] ?? 10),
+                            ]);
+                        }
+                    }
+                } else {
+                    $variantName = is_array($v) ? ($v['name'] ?? 'Varian') : (string) $v;
+                    $addPrice = is_array($v) ? ($v['additional_price'] ?? ($v['additionalPrice'] ?? 0)) : 0;
+                    if (trim($variantName) !== '') {
+                        $product->variants()->create([
+                            'sku' => is_array($v) ? ($v['sku'] ?? Str::upper(Str::random(8))) : Str::upper(Str::random(8)),
+                            'name' => trim($variantName),
+                            'additional_price' => (float) $addPrice,
+                            'stock' => is_array($v) ? ($v['stock'] ?? 10) : 10,
+                        ]);
+                    }
+                }
             }
         }
 
@@ -195,7 +224,9 @@ class ProductController extends Controller
             'price' => 'sometimes|required|numeric|min:0',
             'weight_grams' => 'nullable|integer|min:0',
             'category_id' => 'nullable',
+            'stock' => 'nullable|integer|min:0',
             'images' => 'nullable|array',
+            'variants' => 'nullable|array',
             'is_active' => 'nullable|boolean',
         ]);
 
@@ -224,10 +255,54 @@ class ProductController extends Controller
         if (isset($validated['images']) && is_array($validated['images'])) {
             $product->images()->delete();
             foreach ($validated['images'] as $index => $imageUrl) {
-                $product->images()->create([
-                    'image_url' => $imageUrl,
-                    'is_primary' => $index === 0,
-                ]);
+                if (!empty($imageUrl)) {
+                    $product->images()->create([
+                        'image_url' => $imageUrl,
+                        'is_primary' => $index === 0,
+                    ]);
+                }
+            }
+        }
+
+        if (isset($validated['variants']) && is_array($validated['variants'])) {
+            $product->variants()->delete();
+            foreach ($validated['variants'] as $v) {
+                if (is_array($v) && isset($v['items']) && is_array($v['items'])) {
+                    foreach ($v['items'] as $item) {
+                        $itemName = is_array($item) ? ($item['name'] ?? '') : (string) $item;
+                        $addPrice = is_array($item) ? ($item['additional_price'] ?? ($item['additionalPrice'] ?? 0)) : 0;
+                        if (trim($itemName) !== '') {
+                            $product->variants()->create([
+                                'sku' => Str::upper(Str::random(8)),
+                                'name' => trim($itemName),
+                                'additional_price' => (float) $addPrice,
+                                'stock' => (int) ($validated['stock'] ?? 10),
+                            ]);
+                        }
+                    }
+                } elseif (is_array($v) && isset($v['options']) && is_array($v['options'])) {
+                    foreach ($v['options'] as $opt) {
+                        if (trim($opt) !== '') {
+                            $product->variants()->create([
+                                'sku' => Str::upper(Str::random(8)),
+                                'name' => trim((string) $opt),
+                                'additional_price' => 0,
+                                'stock' => (int) ($validated['stock'] ?? 10),
+                            ]);
+                        }
+                    }
+                } else {
+                    $variantName = is_array($v) ? ($v['name'] ?? 'Varian') : (string) $v;
+                    $addPrice = is_array($v) ? ($v['additional_price'] ?? ($v['additionalPrice'] ?? 0)) : 0;
+                    if (trim($variantName) !== '') {
+                        $product->variants()->create([
+                            'sku' => is_array($v) ? ($v['sku'] ?? Str::upper(Str::random(8))) : Str::upper(Str::random(8)),
+                            'name' => trim($variantName),
+                            'additional_price' => (float) $addPrice,
+                            'stock' => is_array($v) ? ($v['stock'] ?? 10) : 10,
+                        ]);
+                    }
+                }
             }
         }
 
@@ -275,14 +350,26 @@ class ProductController extends Controller
             $stock = 25; // fallback default
         }
 
-        // Transform variants for frontend
+        // Transform variants for frontend with pricing support
         $variants = [];
         if ($product->variants->isNotEmpty()) {
             $options = $product->variants->pluck('name')->toArray();
+            $variantItems = $product->variants->map(function ($v) use ($product) {
+                $addPrice = (float) $v->additional_price;
+                return [
+                    'id' => (string) $v->id,
+                    'name' => $v->name,
+                    'additionalPrice' => $addPrice,
+                    'price' => (float) ($product->base_price + $addPrice),
+                    'stock' => (int) $v->stock,
+                ];
+            })->values()->toArray();
+
             $variants[] = [
                 'id' => 'v1',
                 'name' => 'Pilihan Varian',
                 'options' => $options,
+                'items' => $variantItems,
             ];
         }
 

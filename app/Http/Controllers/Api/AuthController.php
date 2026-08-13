@@ -12,7 +12,45 @@ use Illuminate\Validation\ValidationException;
 class AuthController extends Controller
 {
     /**
-     * Admin login with email/username and password.
+     * Customer registration.
+     */
+    public function register(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email',
+            'phone_number' => 'nullable|string|max:25',
+            'password' => 'required|string|min:6',
+        ]);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => strtolower(trim($validated['email'])),
+            'phone_number' => $validated['phone_number'] ?? null,
+            'role' => 'customer',
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Pendaftaran akun berhasil!',
+            'data' => [
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone_number' => $user->phone_number,
+                    'role' => $user->role,
+                ],
+                'token' => $token,
+            ],
+        ], 201);
+    }
+
+    /**
+     * Login for Customer & Admin with email/username/phone and password.
      */
     public function login(Request $request): JsonResponse
     {
@@ -21,20 +59,21 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $input = $request->input('username');
+        $input = trim($request->input('username'));
         $password = $request->input('password');
 
-        // Find user by email or name or username
+        // Find user by email or name or phone_number
         $user = User::where('email', $input)
             ->orWhere('name', $input)
+            ->orWhere('phone_number', $input)
             ->first();
 
-        // If not found and input is 'admin', check by role admin
-        if (!$user && $input === 'admin') {
+        // If not found and input is 'admin', fallback check by role admin
+        if (!$user && strtolower($input) === 'admin') {
             $user = User::where('role', 'admin')->first();
         }
 
-        // Validate password (or accept demo credentials 'admin'/'admin123' if local dev)
+        // Validate password
         $isValidPassword = false;
         if ($user) {
             $isValidPassword = Hash::check($password, $user->password) || ($password === 'admin123' && in_array($user->role, ['admin', 'warehouse', 'cs']));
@@ -43,21 +82,22 @@ class AuthController extends Controller
         if (!$user || !$isValidPassword) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Kredensial username atau password salah.',
+                'message' => 'Email/No. HP atau kata sandi tidak cocok.',
             ], 401);
         }
 
         // Generate Sanctum token
-        $token = $user->createToken('admin_token')->plainTextToken;
+        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Login berhasil',
+            'message' => 'Login berhasil! Selamat datang, ' . $user->name,
             'data' => [
                 'user' => [
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'phone_number' => $user->phone_number,
                     'role' => $user->role,
                 ],
                 'token' => $token,
@@ -78,6 +118,7 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'phone_number' => $user->phone_number,
                 'role' => $user->role,
             ],
         ]);
@@ -88,7 +129,9 @@ class AuthController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()->delete();
+        if ($request->user() && $request->user()->currentAccessToken()) {
+            $request->user()->currentAccessToken()->delete();
+        }
 
         return response()->json([
             'status' => 'success',

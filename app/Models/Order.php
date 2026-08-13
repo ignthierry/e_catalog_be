@@ -13,6 +13,9 @@ class Order extends Model
 
     protected $fillable = [
         'user_id',
+        'customer_name',
+        'customer_phone',
+        'customer_email',
         'order_number',
         'total_amount',
         'shipping_cost',
@@ -20,15 +23,20 @@ class Order extends Model
         'status',
         'payment_method',
         'payment_status',
+        'payment_proof',
         'courier',
         'awb_number',
         'shipping_address',
+        'notes',
+        'admin_notes',
+        'paid_at',
     ];
 
     protected $casts = [
         'total_amount' => 'float',
         'shipping_cost' => 'float',
         'grand_total' => 'float',
+        'paid_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

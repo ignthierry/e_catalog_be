@@ -56,6 +56,28 @@ return [
             'throw' => false,
         ],
 
+        'ftp' => [
+            'driver' => 'ftp',
+            'host' => env('FTP_HOST', '192.168.1.103'),
+            'username' => env('FTP_USERNAME', 'lunaftp'),
+            'password' => env('FTP_PASSWORD', 'N2145tb@'),
+            'port' => (int) env('FTP_PORT', 21),
+            'root' => env('FTP_ROOT', '/home/lunaftp/ftp/upload'),
+            'passive' => true,
+            'ssl' => false,
+            'timeout' => 30,
+        ],
+
+        'sftp' => [
+            'driver' => 'sftp',
+            'host' => env('FTP_HOST', '192.168.1.103'),
+            'username' => env('FTP_USERNAME', 'lunaftp'),
+            'password' => env('FTP_PASSWORD', 'N2145tb@'),
+            'port' => (int) env('FTP_PORT', 22),
+            'root' => env('FTP_ROOT', '/home/lunaftp/ftp/upload'),
+            'timeout' => 30,
+        ],
+
     ],
 
     /*

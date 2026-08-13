@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\Category;
 use App\Models\Banner;
 use App\Models\Setting;
+use App\Models\Order;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -21,6 +22,13 @@ class DashboardController extends Controller
         $totalProducts = Product::where('is_active', true)->count();
         $totalCategories = Category::count();
         $totalBanners = Banner::where('is_active', true)->count();
+        $totalOrders = Order::count();
+        $pendingOrders = Order::where(function ($q) {
+            $q->where('status', 'pending')
+              ->orWhere('payment_status', 'verifying');
+        })->count();
+        $processingOrders = Order::where('status', 'processing')->count();
+        $totalRevenue = (float) Order::where('status', '!=', 'cancelled')->sum('grand_total');
 
         // 2. Stock calculation
         $productsWithVariants = Product::with(['variants', 'categories', 'images'])
@@ -69,7 +77,28 @@ class DashboardController extends Controller
                 ];
             });
 
-        // 4. Category breakdown
+        // 4. Recent Orders (Latest 5)
+        $recentOrders = Order::with(['items.product.images', 'items.variant'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($order) {
+                return [
+                    'id' => (string) $order->id,
+                    'orderNumber' => $order->order_number,
+                    'customerName' => $order->customer_name ?: 'Customer',
+                    'customerPhone' => $order->customer_phone ?: '-',
+                    'grandTotal' => (float) $order->grand_total,
+                    'status' => $order->status,
+                    'paymentMethod' => $order->payment_method,
+                    'paymentStatus' => $order->payment_status,
+                    'paymentProof' => $order->payment_proof,
+                    'itemCount' => $order->items->sum('quantity'),
+                    'createdAt' => $order->created_at ? $order->created_at->toISOString() : null,
+                ];
+            });
+
+        // 5. Category breakdown
         $categoriesSummary = Category::withCount('products')
             ->orderBy('products_count', 'desc')
             ->get()
@@ -82,7 +111,7 @@ class DashboardController extends Controller
                 ];
             });
 
-        // 5. Store Settings
+        // 6. Store Settings
         $settingsRaw = Setting::all()->pluck('value', 'key')->toArray();
         $settings = array_merge([
             'store_name' => 'OMEGA TOYS',
@@ -101,8 +130,13 @@ class DashboardController extends Controller
                     'totalBanners' => $totalBanners,
                     'totalStock' => $totalStock,
                     'lowStockCount' => $lowStockCount,
+                    'totalOrders' => $totalOrders,
+                    'pendingOrders' => $pendingOrders,
+                    'processingOrders' => $processingOrders,
+                    'totalRevenue' => $totalRevenue,
                 ],
                 'recentProducts' => $recentProducts,
+                'recentOrders' => $recentOrders,
                 'categoriesSummary' => $categoriesSummary,
                 'settings' => $settings,
                 'system' => [

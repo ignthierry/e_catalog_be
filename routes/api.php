@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\OrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,38 +16,60 @@ use App\Http\Controllers\Api\DashboardController;
 |--------------------------------------------------------------------------
 */
 
-// Public Catalog API Endpoints
+// Public & Customer API Endpoints
 Route::prefix('')->group(function () {
+    // Products
     Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/featured', [ProductController::class, 'featured']);
     Route::get('/products/{id}', [ProductController::class, 'show']);
 
+    // Categories
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::get('/categories/{id}', [CategoryController::class, 'show']);
 
+    // Banners & Settings & Media
     Route::get('/banners', [BannerController::class, 'index']);
     Route::get('/settings', [SettingController::class, 'index']);
+    Route::get('/images/{filename}', [UploadController::class, 'serve']);
 
+    // Auth
+    Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/login', [AuthController::class, 'login']);
+
+    // Customer In-App Orders
+    Route::post('/orders', [OrderController::class, 'store']);
+    Route::get('/orders', [OrderController::class, 'index']);
+    Route::get('/orders/{id}', [OrderController::class, 'show']);
+    Route::post('/orders/{id}/upload-proof', [OrderController::class, 'uploadProof']);
 });
 
-// Admin Operations (Public endpoints or Sanctum Protected)
+// Admin Operations (Public or Sanctum Protected)
 Route::prefix('admin')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index']);
+
+    // Products
     Route::post('/products', [ProductController::class, 'store']);
     Route::put('/products/{id}', [ProductController::class, 'update']);
     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
 
+    // Categories
     Route::post('/categories', [CategoryController::class, 'store']);
     Route::put('/categories/{id}', [CategoryController::class, 'update']);
     Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
 
+    // Banners
     Route::post('/banners', [BannerController::class, 'store']);
     Route::put('/banners/{id}', [BannerController::class, 'update']);
     Route::delete('/banners/{id}', [BannerController::class, 'destroy']);
 
+    // Settings & Uploads
     Route::post('/settings', [SettingController::class, 'update']);
     Route::post('/upload', [UploadController::class, 'upload']);
+
+    // Orders Management
+    Route::get('/orders', [OrderController::class, 'adminIndex']);
+    Route::get('/orders/{id}', [OrderController::class, 'show']);
+    Route::put('/orders/{id}/status', [OrderController::class, 'adminUpdateStatus']);
 });
 
 // Authenticated user session
