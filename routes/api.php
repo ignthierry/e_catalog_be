@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UploadController;
+use App\Http\Controllers\Api\DashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,6 +32,7 @@ Route::prefix('')->group(function () {
 
 // Admin Operations (Public endpoints or Sanctum Protected)
 Route::prefix('admin')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index']);
     Route::post('/products', [ProductController::class, 'store']);
     Route::put('/products/{id}', [ProductController::class, 'update']);
     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
