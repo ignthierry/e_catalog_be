@@ -8,6 +8,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
+use App\Helpers\MediaHelper;
+
 class CategoryController extends Controller
 {
     /**
@@ -39,7 +41,7 @@ class CategoryController extends Controller
                 'name' => $cat->name,
                 'slug' => $cat->slug,
                 'icon' => $icon,
-                'image' => $cat->image,
+                'image' => MediaHelper::url($cat->image),
                 'parentId' => $cat->parent_id ? (string) $cat->parent_id : null,
                 'productCount' => $cat->products_count,
             ];
@@ -80,7 +82,7 @@ class CategoryController extends Controller
                 'name' => $category->name,
                 'slug' => $category->slug,
                 'icon' => $this->iconMap[$category->slug] ?? 'LayoutGrid',
-                'image' => $category->image,
+                'image' => MediaHelper::url($category->image),
                 'products' => $category->products,
             ],
         ]);

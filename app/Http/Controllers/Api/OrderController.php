@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Helpers\MediaHelper;
 
 class OrderController extends Controller
 {
@@ -361,7 +362,7 @@ class OrderController extends Controller
     {
         $items = $order->items->map(function ($item) {
             $product = $item->product;
-            $images = $product && $product->images ? $product->images->pluck('image_url')->toArray() : [];
+            $images = $product && $product->images ? $product->images->pluck('image_url')->map(fn($img) => MediaHelper::url($img))->filter()->values()->toArray() : [];
             $image = !empty($images) ? $images[0] : 'https://images.unsplash.com/photo-1594787318286-3d835c1d207f?w=800&q=80';
 
             return [
@@ -390,7 +391,7 @@ class OrderController extends Controller
             'status' => $order->status,
             'paymentMethod' => $order->payment_method,
             'paymentStatus' => $order->payment_status,
-            'paymentProof' => $order->payment_proof,
+            'paymentProof' => MediaHelper::url($order->payment_proof),
             'courier' => $order->courier ?: 'JNE REG',
             'awbNumber' => $order->awb_number,
             'shippingAddress' => $order->shipping_address,

@@ -9,6 +9,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
+use App\Helpers\MediaHelper;
+
 class ProductController extends Controller
 {
     /**
@@ -339,7 +341,10 @@ class ProductController extends Controller
     {
         $primaryCategory = $product->categories->first();
         
-        $images = $product->images->pluck('image_url')->toArray();
+        $images = $product->images->pluck('image_url')->map(function ($img) {
+            return MediaHelper::url($img);
+        })->filter()->values()->toArray();
+
         if (empty($images)) {
             $images = ['https://images.unsplash.com/photo-1594787318286-3d835c1d207f?w=800&q=80'];
         }

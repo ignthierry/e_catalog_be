@@ -7,6 +7,8 @@ use App\Models\Banner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+use App\Helpers\MediaHelper;
+
 class BannerController extends Controller
 {
     /**
@@ -23,7 +25,7 @@ class BannerController extends Controller
                 'id' => (string) $banner->id,
                 'title' => $banner->title,
                 'subtitle' => $banner->subtitle ?? '',
-                'image' => $banner->image,
+                'image' => MediaHelper::url($banner->image),
                 'link' => $banner->link ?? '/products',
                 'order' => $banner->order,
             ];

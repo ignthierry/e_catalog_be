@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
+use App\Helpers\MediaHelper;
+
 class UploadController extends Controller
 {
     /**
@@ -31,11 +33,11 @@ class UploadController extends Controller
             $localPath = $file->storeAs('uploads', $filename, 'public');
             $localFullPath = storage_path('app/public/uploads/' . $filename);
 
-            // 2. Upload to remote FTP/SFTP Server (192.168.1.103)
+            // 2. Upload to remote FTP/SFTP Server (e.g. 100.91.206.4)
             $ftpUploaded = $this->uploadToFtp($localFullPath, $filename);
 
-            // 3. Construct public accessible URL
-            $url = url('storage/uploads/' . $filename);
+            // 3. Construct public accessible URL via API images route (supports dynamic FTP fallback)
+            $url = MediaHelper::url($filename);
 
             return response()->json([
                 'status' => 'success',
@@ -66,8 +68,11 @@ class UploadController extends Controller
 
         // Check if exists locally
         if (file_exists($localPath)) {
+            $mime = mime_content_type($localPath) ?: 'image/png';
             return response()->file($localPath, [
+                'Content-Type' => $mime,
                 'Cache-Control' => 'public, max-age=86400',
+                'Access-Control-Allow-Origin' => '*',
             ]);
         }
 
@@ -80,8 +85,11 @@ class UploadController extends Controller
             }
             file_put_contents($localPath, $remoteData);
 
+            $mime = mime_content_type($localPath) ?: 'image/png';
             return response()->file($localPath, [
+                'Content-Type' => $mime,
                 'Cache-Control' => 'public, max-age=86400',
+                'Access-Control-Allow-Origin' => '*',
             ]);
         }
 

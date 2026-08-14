@@ -11,6 +11,8 @@ use App\Models\Order;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
+use App\Helpers\MediaHelper;
+
 class DashboardController extends Controller
 {
     /**
@@ -55,7 +57,7 @@ class DashboardController extends Controller
             ->get()
             ->map(function ($product) {
                 $primaryCategory = $product->categories->first();
-                $images = $product->images->pluck('image_url')->toArray();
+                $images = $product->images->pluck('image_url')->map(fn($img) => MediaHelper::url($img))->filter()->values()->toArray();
                 if (empty($images)) {
                     $images = ['https://images.unsplash.com/photo-1594787318286-3d835c1d207f?w=800&q=80'];
                 }
@@ -92,7 +94,7 @@ class DashboardController extends Controller
                     'status' => $order->status,
                     'paymentMethod' => $order->payment_method,
                     'paymentStatus' => $order->payment_status,
-                    'paymentProof' => $order->payment_proof,
+                    'paymentProof' => MediaHelper::url($order->payment_proof),
                     'itemCount' => $order->items->sum('quantity'),
                     'createdAt' => $order->created_at ? $order->created_at->toISOString() : null,
                 ];
