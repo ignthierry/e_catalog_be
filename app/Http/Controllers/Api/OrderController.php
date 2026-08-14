@@ -37,12 +37,17 @@ class OrderController extends Controller
         ]);
 
         $user = $request->user() ?: auth('sanctum')->user();
-        $userId = $user ? $user->id : null;
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda harus login atau mendaftar terlebih dahulu untuk melakukan transaksi.',
+            ], 401);
+        }
 
         // Generate unique order number (e.g. OMG-20260813-A8X9K)
         $orderNumber = 'OMG-' . date('Ymd') . '-' . Str::upper(Str::random(5));
 
-        return DB::transaction(function () use ($validated, $userId, $orderNumber) {
+        return DB::transaction(function () use ($validated, $user, $orderNumber) {
             $totalAmount = 0;
             $shippingCost = (float) ($validated['shipping_cost'] ?? 15000);
             $orderItemsData = [];
@@ -85,10 +90,10 @@ class OrderController extends Controller
             $paymentStatus = $hasProof ? 'verifying' : 'unpaid';
 
             $order = Order::create([
-                'user_id' => $userId,
+                'user_id' => $user->id,
                 'customer_name' => $validated['customer_name'],
                 'customer_phone' => $validated['customer_phone'],
-                'customer_email' => $validated['customer_email'] ?? ($user ? $user->email : null),
+                'customer_email' => $validated['customer_email'] ?? $user->email,
                 'order_number' => $orderNumber,
                 'total_amount' => $totalAmount,
                 'shipping_cost' => $shippingCost,
@@ -123,6 +128,20 @@ class OrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user() ?: auth('sanctum')->user();
+
+        // If guest and no filter provided, return empty list
+        if (!$user && !$request->filled('email') && !$request->filled('phone')) {
+            return response()->json([
+                'status' => 'success',
+                'data' => [],
+                'meta' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'total' => 0,
+                ],
+            ]);
+        }
+
         $query = Order::with(['items.product.images', 'items.variant'])
             ->orderBy('created_at', 'desc');
 
