@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\ShippingController;
+use App\Http\Controllers\Api\ShopeeImportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -81,6 +82,10 @@ Route::prefix('admin')->group(function () {
     // Activity Logs / Audit Trail
     Route::get('/activity-logs', [ActivityLogController::class, 'index']);
     Route::delete('/activity-logs/clear', [ActivityLogController::class, 'clear']);
+
+    // Shopee Store Synchronization & Data Reset
+    Route::post('/shopee/reset-and-import', [ShopeeImportController::class, 'resetAndImport']);
+    Route::post('/shopee/clear-data', [ShopeeImportController::class, 'clearData']);
 });
 
 // Authenticated user session
