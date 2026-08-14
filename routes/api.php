@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\ActivityLogController;
+use App\Http\Controllers\Api\ShippingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -42,6 +44,10 @@ Route::prefix('')->group(function () {
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
     Route::post('/orders/{id}/upload-proof', [OrderController::class, 'uploadProof']);
+
+    // RajaOngkir Real-Time Shipping
+    Route::get('/shipping/destinations', [ShippingController::class, 'searchDestinations']);
+    Route::post('/shipping/calculate-cost', [ShippingController::class, 'calculateCost']);
 });
 
 // Admin Operations (Public or Sanctum Protected)
@@ -71,6 +77,10 @@ Route::prefix('admin')->group(function () {
     Route::get('/orders', [OrderController::class, 'adminIndex']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
     Route::put('/orders/{id}/status', [OrderController::class, 'adminUpdateStatus']);
+
+    // Activity Logs / Audit Trail
+    Route::get('/activity-logs', [ActivityLogController::class, 'index']);
+    Route::delete('/activity-logs/clear', [ActivityLogController::class, 'clear']);
 });
 
 // Authenticated user session

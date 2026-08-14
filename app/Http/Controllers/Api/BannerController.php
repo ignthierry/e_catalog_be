@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 use App\Helpers\MediaHelper;
+use App\Services\ActivityLogger;
 
 class BannerController extends Controller
 {
@@ -60,6 +61,14 @@ class BannerController extends Controller
             'is_active' => $validated['is_active'] ?? true,
         ]);
 
+        ActivityLogger::log(
+            $request,
+            'CREATE_BANNER',
+            "Menambahkan banner promosi '{$banner->title}'",
+            null,
+            ['banner_id' => $banner->id, 'title' => $banner->title]
+        );
+
         return response()->json([
             'status' => 'success',
             'message' => 'Banner promosi berhasil ditambahkan',
@@ -85,6 +94,14 @@ class BannerController extends Controller
 
         $banner->update($validated);
 
+        ActivityLogger::log(
+            $request,
+            'UPDATE_BANNER',
+            "Memperbarui banner '{$banner->title}' (ID: {$banner->id})",
+            null,
+            ['banner_id' => $banner->id, 'title' => $banner->title]
+        );
+
         return response()->json([
             'status' => 'success',
             'message' => 'Banner berhasil diperbarui',
@@ -95,10 +112,19 @@ class BannerController extends Controller
     /**
      * Delete a banner (Admin).
      */
-    public function destroy($id): JsonResponse
+    public function destroy(Request $request, $id): JsonResponse
     {
         $banner = Banner::findOrFail($id);
+        $bannerTitle = $banner->title;
         $banner->delete();
+
+        ActivityLogger::log(
+            $request,
+            'DELETE_BANNER',
+            "Menghapus banner '{$bannerTitle}' (ID: {$id})",
+            null,
+            ['banner_id' => $id, 'title' => $bannerTitle]
+        );
 
         return response()->json([
             'status' => 'success',

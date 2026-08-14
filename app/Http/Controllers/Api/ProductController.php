@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 use App\Helpers\MediaHelper;
+use App\Services\ActivityLogger;
 
 class ProductController extends Controller
 {
@@ -206,6 +207,14 @@ class ProductController extends Controller
 
         $product->load(['categories', 'images', 'variants']);
 
+        ActivityLogger::log(
+            $request,
+            'CREATE_PRODUCT',
+            "Menambahkan produk baru '{$product->name}' seharga Rp " . number_format($product->base_price, 0, ',', '.'),
+            null,
+            ['product_id' => $product->id, 'name' => $product->name, 'price' => $product->base_price]
+        );
+
         return response()->json([
             'status' => 'success',
             'message' => 'Produk berhasil ditambahkan',
@@ -250,46 +259,59 @@ class ProductController extends Controller
 
         $product->save();
 
-        if (isset($validated['category_id'])) {
-            $product->categories()->sync([$validated['category_id']]);
+        // Update category relationship if provided
+        if (array_key_exists('category_id', $validated)) {
+            $catId = $validated['category_id'];
+            if (!empty($catId)) {
+                $category = Category::where('id', $catId)->orWhere('slug', $catId)->first();
+                if ($category) {
+                    $product->categories()->sync([$category->id]);
+                }
+            } else {
+                $product->categories()->detach();
+            }
         }
 
-        if (isset($validated['images']) && is_array($validated['images'])) {
+        // Update images if provided
+        if (array_key_exists('images', $validated)) {
             $product->images()->delete();
-            foreach ($validated['images'] as $index => $imageUrl) {
-                if (!empty($imageUrl)) {
+            $images = is_array($validated['images']) ? $validated['images'] : [];
+            foreach ($images as $idx => $imgUrl) {
+                if (!empty($imgUrl)) {
                     $product->images()->create([
-                        'image_url' => $imageUrl,
-                        'is_primary' => $index === 0,
+                        'image_url' => $imgUrl,
+                        'is_primary' => $idx === 0,
+                        'order' => $idx,
                     ]);
                 }
             }
         }
 
-        if (isset($validated['variants']) && is_array($validated['variants'])) {
+        // Update variants if provided
+        if (array_key_exists('variants', $validated)) {
             $product->variants()->delete();
-            foreach ($validated['variants'] as $v) {
-                if (is_array($v) && isset($v['items']) && is_array($v['items'])) {
-                    foreach ($v['items'] as $item) {
-                        $itemName = is_array($item) ? ($item['name'] ?? '') : (string) $item;
-                        $addPrice = is_array($item) ? ($item['additional_price'] ?? ($item['additionalPrice'] ?? 0)) : 0;
-                        if (trim($itemName) !== '') {
-                            $product->variants()->create([
-                                'sku' => Str::upper(Str::random(8)),
-                                'name' => trim($itemName),
-                                'additional_price' => (float) $addPrice,
-                                'stock' => (int) ($validated['stock'] ?? 10),
-                            ]);
+            $variants = is_array($validated['variants']) ? $validated['variants'] : [];
+            foreach ($variants as $v) {
+                if (is_array($v) && isset($v['options']) && is_array($v['options'])) {
+                    $items = isset($v['items']) && is_array($v['items']) ? $v['items'] : [];
+                    $itemMap = [];
+                    foreach ($items as $itm) {
+                        if (isset($itm['name'])) {
+                            $itemMap[$itm['name']] = $itm;
                         }
                     }
-                } elseif (is_array($v) && isset($v['options']) && is_array($v['options'])) {
+
                     foreach ($v['options'] as $opt) {
-                        if (trim($opt) !== '') {
+                        $optName = trim((string) $opt);
+                        if ($optName !== '') {
+                            $itm = $itemMap[$optName] ?? [];
+                            $addPrice = (float) ($itm['additional_price'] ?? ($itm['additionalPrice'] ?? 0));
+                            $vStock = (int) ($itm['stock'] ?? 10);
                             $product->variants()->create([
-                                'sku' => Str::upper(Str::random(8)),
-                                'name' => trim((string) $opt),
-                                'additional_price' => 0,
-                                'stock' => (int) ($validated['stock'] ?? 10),
+                                'sku' => $itm['sku'] ?? Str::upper(Str::random(8)),
+                                'name' => $optName,
+                                'additional_price' => $addPrice,
+                                'stock' => $vStock,
                             ]);
                         }
                     }
@@ -310,6 +332,14 @@ class ProductController extends Controller
 
         $product->load(['categories', 'images', 'variants']);
 
+        ActivityLogger::log(
+            $request,
+            'UPDATE_PRODUCT',
+            "Memperbarui data produk '{$product->name}' (ID: {$product->id})",
+            null,
+            ['product_id' => $product->id, 'name' => $product->name, 'price' => $product->base_price]
+        );
+
         return response()->json([
             'status' => 'success',
             'message' => 'Produk berhasil diperbarui',
@@ -320,13 +350,23 @@ class ProductController extends Controller
     /**
      * Delete a product (Admin).
      */
-    public function destroy($id): JsonResponse
+    public function destroy(Request $request, $id): JsonResponse
     {
         $product = Product::findOrFail($id);
+        $productName = $product->name;
+
         $product->categories()->detach();
         $product->images()->delete();
         $product->variants()->delete();
         $product->delete();
+
+        ActivityLogger::log(
+            $request,
+            'DELETE_PRODUCT',
+            "Menghapus produk '{$productName}' (ID: {$id})",
+            null,
+            ['product_id' => $id, 'name' => $productName]
+        );
 
         return response()->json([
             'status' => 'success',

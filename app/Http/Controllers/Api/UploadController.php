@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 use App\Helpers\MediaHelper;
+use App\Services\ActivityLogger;
 
 class UploadController extends Controller
 {
@@ -38,6 +39,14 @@ class UploadController extends Controller
 
             // 3. Construct public accessible URL via API images route (supports dynamic FTP fallback)
             $url = MediaHelper::url($filename);
+
+            ActivityLogger::log(
+                $request,
+                'UPLOAD_IMAGE',
+                "Mengunggah gambar baru '{$filename}'" . ($ftpUploaded ? " (Tersimpan ke SFTP)" : ""),
+                null,
+                ['filename' => $filename, 'url' => $url, 'ftp_stored' => $ftpUploaded]
+            );
 
             return response()->json([
                 'status' => 'success',

@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Helpers\MediaHelper;
+use App\Services\ActivityLogger;
 
 class OrderController extends Controller
 {
@@ -347,6 +348,21 @@ class OrderController extends Controller
 
         $order->save();
         $order->load(['items.product.images', 'items.variant', 'user']);
+
+        ActivityLogger::log(
+            $request,
+            'UPDATE_ORDER_STATUS',
+            "Memperbarui status pesanan #{$order->order_number} menjadi '{$order->status}' (Pembayaran: '{$order->payment_status}')" . ($order->awb_number ? " [Resi: {$order->awb_number}]" : ""),
+            null,
+            [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'status' => $order->status,
+                'payment_status' => $order->payment_status,
+                'awb_number' => $order->awb_number,
+                'grand_total' => $order->grand_total,
+            ]
+        );
 
         return response()->json([
             'status' => 'success',

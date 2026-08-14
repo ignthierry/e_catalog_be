@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 use App\Helpers\MediaHelper;
+use App\Services\ActivityLogger;
 
 class CategoryController extends Controller
 {
@@ -106,6 +107,14 @@ class CategoryController extends Controller
             'parent_id' => $validated['parent_id'] ?? null,
         ]);
 
+        ActivityLogger::log(
+            $request,
+            'CREATE_CATEGORY',
+            "Menambahkan kategori baru '{$category->name}'",
+            null,
+            ['category_id' => $category->id, 'name' => $category->name]
+        );
+
         return response()->json([
             'status' => 'success',
             'message' => 'Kategori berhasil ditambahkan',
@@ -139,6 +148,14 @@ class CategoryController extends Controller
 
         $category->save();
 
+        ActivityLogger::log(
+            $request,
+            'UPDATE_CATEGORY',
+            "Memperbarui kategori '{$category->name}' (ID: {$category->id})",
+            null,
+            ['category_id' => $category->id, 'name' => $category->name]
+        );
+
         return response()->json([
             'status' => 'success',
             'message' => 'Kategori berhasil diperbarui',
@@ -149,11 +166,20 @@ class CategoryController extends Controller
     /**
      * Delete a category (Admin).
      */
-    public function destroy($id): JsonResponse
+    public function destroy(Request $request, $id): JsonResponse
     {
         $category = Category::findOrFail($id);
+        $categoryName = $category->name;
         $category->products()->detach();
         $category->delete();
+
+        ActivityLogger::log(
+            $request,
+            'DELETE_CATEGORY',
+            "Menghapus kategori '{$categoryName}' (ID: {$id})",
+            null,
+            ['category_id' => $id, 'name' => $categoryName]
+        );
 
         return response()->json([
             'status' => 'success',

@@ -31,4 +31,11 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'rajaongkir' => [
+        'key' => env('RAJAONGKIR_API_KEY', 'kFS41bAP695509c8c8419da3PY9irtKv'),
+        'base_url' => env('RAJAONGKIR_BASE_URL', 'https://rajaongkir.komerce.id/api/v1'),
+        'origin_id' => env('RAJAONGKIR_ORIGIN_ID', 17473), // Default Jakarta Barat
+        'couriers' => env('RAJAONGKIR_COURIERS', 'jne:jnt:sicepat:anteraja:ninja:pos'),
+    ],
+
 ];

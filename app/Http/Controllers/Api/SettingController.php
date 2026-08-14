@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Services\ActivityLogger;
 
 class SettingController extends Controller
 {
@@ -43,6 +44,14 @@ class SettingController extends Controller
         foreach ($data as $key => $value) {
             Setting::set($key, (string) $value);
         }
+
+        ActivityLogger::log(
+            $request,
+            'UPDATE_SETTINGS',
+            "Memperbarui konfigurasi toko (" . implode(', ', array_keys($data)) . ")",
+            null,
+            ['updated_keys' => array_keys($data)]
+        );
 
         return response()->json([
             'status' => 'success',

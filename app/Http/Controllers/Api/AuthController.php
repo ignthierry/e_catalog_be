@@ -8,6 +8,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Str;
+use App\Services\ActivityLogger;
 
 class AuthController extends Controller
 {
@@ -80,6 +82,14 @@ class AuthController extends Controller
         }
 
         if (!$user || !$isValidPassword) {
+            ActivityLogger::log(
+                $request,
+                'FAILED_LOGIN',
+                "Percobaan login gagal dengan identitas input: '{$input}'",
+                null,
+                ['attempted_input' => $input]
+            );
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Email/No. HP atau kata sandi tidak cocok.',
@@ -88,6 +98,15 @@ class AuthController extends Controller
 
         // Generate Sanctum token
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        // Log successful login
+        ActivityLogger::log(
+            $request,
+            'LOGIN',
+            "Pengguna {$user->name} ({$user->role}) berhasil masuk ke dalam sistem",
+            $user,
+            ['role' => $user->role, 'email' => $user->email]
+        );
 
         return response()->json([
             'status' => 'success',
@@ -129,8 +148,18 @@ class AuthController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
-        if ($request->user() && $request->user()->currentAccessToken()) {
-            $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+        if ($user) {
+            ActivityLogger::log(
+                $request,
+                'LOGOUT',
+                "Pengguna {$user->name} telah keluar dari sistem (logout)",
+                $user
+            );
+
+            if ($user->currentAccessToken()) {
+                $user->currentAccessToken()->delete();
+            }
         }
 
         return response()->json([
