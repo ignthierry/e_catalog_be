@@ -104,12 +104,12 @@ class UploadController extends Controller
      */
     private function uploadToFtp(string $localFilePath, string $filename): bool
     {
-        $host = env('FTP_HOST', '192.168.1.103');
-        $user = env('FTP_USERNAME', 'lunaftp');
-        $pass = env('FTP_PASSWORD', 'N2145tb@');
-        $port = (int) env('FTP_PORT', 22);
-        $protocol = env('FTP_PROTOCOL', 'sftp'); // sftp or ftp
-        $remoteRoot = rtrim(env('FTP_ROOT', '/home/lunaftp/ftp/upload'), '/');
+        $protocol = config('filesystems.ftp_settings.protocol', env('FTP_PROTOCOL', 'sftp'));
+        $host = config('filesystems.ftp_settings.host', env('FTP_HOST', '100.91.206.4'));
+        $port = (int) config('filesystems.ftp_settings.port', env('FTP_PORT', 22));
+        $user = config('filesystems.ftp_settings.username', env('FTP_USERNAME', 'lunaftp'));
+        $pass = config('filesystems.ftp_settings.password', env('FTP_PASSWORD', 'N2145tb@'));
+        $remoteRoot = rtrim(config('filesystems.ftp_settings.root', env('FTP_ROOT', '/home/lunaftp/ftp/upload')), '/');
 
         if (!file_exists($localFilePath)) {
             return false;
@@ -144,12 +144,11 @@ class UploadController extends Controller
 
             $response = curl_exec($ch);
             $err = curl_error($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
             curl_close($ch);
             fclose($fp);
 
             if ($err) {
-                Log::warning("FTP upload error for {$filename}: {$err}");
+                Log::warning("FTP upload error for {$filename} to {$host}: {$err}");
                 return false;
             }
 
@@ -168,12 +167,12 @@ class UploadController extends Controller
      */
     private function fetchFromFtp(string $filename): ?string
     {
-        $host = env('FTP_HOST', '192.168.1.103');
-        $user = env('FTP_USERNAME', 'lunaftp');
-        $pass = env('FTP_PASSWORD', 'N2145tb@');
-        $port = (int) env('FTP_PORT', 22);
-        $protocol = env('FTP_PROTOCOL', 'sftp');
-        $remoteRoot = rtrim(env('FTP_ROOT', '/home/lunaftp/ftp/upload'), '/');
+        $protocol = config('filesystems.ftp_settings.protocol', env('FTP_PROTOCOL', 'sftp'));
+        $host = config('filesystems.ftp_settings.host', env('FTP_HOST', '100.91.206.4'));
+        $port = (int) config('filesystems.ftp_settings.port', env('FTP_PORT', 22));
+        $user = config('filesystems.ftp_settings.username', env('FTP_USERNAME', 'lunaftp'));
+        $pass = config('filesystems.ftp_settings.password', env('FTP_PASSWORD', 'N2145tb@'));
+        $remoteRoot = rtrim(config('filesystems.ftp_settings.root', env('FTP_ROOT', '/home/lunaftp/ftp/upload')), '/');
 
         try {
             $remoteUrl = "{$protocol}://{$host}:{$port}{$remoteRoot}/{$filename}";
@@ -195,6 +194,7 @@ class UploadController extends Controller
             curl_close($ch);
 
             if ($err || empty($data)) {
+                Log::warning("FTP fetch error for {$filename} from {$host}: {$err}");
                 return null;
             }
 

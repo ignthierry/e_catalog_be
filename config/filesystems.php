@@ -70,7 +70,7 @@ return [
 
         'sftp' => [
             'driver' => 'sftp',
-            'host' => env('FTP_HOST', '192.168.1.103'),
+            'host' => env('FTP_HOST', '100.91.206.4'),
             'username' => env('FTP_USERNAME', 'lunaftp'),
             'password' => env('FTP_PASSWORD', 'N2145tb@'),
             'port' => (int) env('FTP_PORT', 22),
@@ -78,6 +78,20 @@ return [
             'timeout' => 30,
         ],
 
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | FTP / SFTP Remote Media Storage Settings
+    |--------------------------------------------------------------------------
+    */
+    'ftp_settings' => [
+        'host' => env('FTP_HOST', '100.91.206.4'),
+        'port' => (int) env('FTP_PORT', 22),
+        'username' => env('FTP_USERNAME', 'lunaftp'),
+        'password' => env('FTP_PASSWORD', 'N2145tb@'),
+        'root' => env('FTP_ROOT', '/home/lunaftp/ftp/upload'),
+        'protocol' => env('FTP_PROTOCOL', 'sftp'),
     ],
 
     /*
