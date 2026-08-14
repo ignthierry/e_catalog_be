@@ -46,7 +46,7 @@ Route::prefix('')->group(function () {
     Route::get('/orders/{id}', [OrderController::class, 'show']);
     Route::post('/orders/{id}/upload-proof', [OrderController::class, 'uploadProof']);
 
-    // RajaOngkir Real-Time Shipping
+    // Real-Time Shipping Rate Calculations
     Route::get('/shipping/destinations', [ShippingController::class, 'searchDestinations']);
     Route::post('/shipping/calculate-cost', [ShippingController::class, 'calculateCost']);
 });
@@ -88,8 +88,17 @@ Route::prefix('admin')->group(function () {
     Route::post('/shopee/clear-data', [ShopeeImportController::class, 'clearData']);
 });
 
-// Authenticated user session
+// Member Account Settings & Profile Updates (Supports token in Authorization header)
+Route::get('/auth/me', [AuthController::class, 'me']);
+Route::match(['PUT', 'POST'], '/auth/profile', [AuthController::class, 'updateProfile']);
+Route::match(['PUT', 'POST'], '/auth/password', [AuthController::class, 'updatePassword']);
+Route::post('/auth/avatar', [AuthController::class, 'uploadAvatar']);
+Route::post('/auth/logout', [AuthController::class, 'logout']);
+
+// Authenticated user session (Sanctum middleware alias)
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/auth/me', [AuthController::class, 'me']);
-    Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::get('/me', [AuthController::class, 'me']);
+    Route::match(['PUT', 'POST'], '/profile', [AuthController::class, 'updateProfile']);
+    Route::match(['PUT', 'POST'], '/password', [AuthController::class, 'updatePassword']);
+    Route::post('/avatar', [AuthController::class, 'uploadAvatar']);
 });

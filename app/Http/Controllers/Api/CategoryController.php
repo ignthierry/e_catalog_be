@@ -14,18 +14,51 @@ use App\Services\ActivityLogger;
 class CategoryController extends Controller
 {
     /**
-     * Map slug to Lucide icon name for frontend.
+     * Resolve Lucide icon name based on category slug or name.
      */
-    private array $iconMap = [
-        'action-figure' => 'Bot',
-        'mainan-edukasi' => 'BrainCircuit',
-        'mobil-remote-control' => 'Car',
-        'gundam-model-kit' => 'Blocks',
-        'boneka' => 'Heart',
-        'board-game' => 'Gamepad2',
-        'sepeda-anak' => 'Bike',
-        'seni-kreasi' => 'Palette',
-    ];
+    private function resolveIcon(string $name, ?string $slug = null): string
+    {
+        $target = strtolower(trim(($slug ?? '') . ' ' . $name));
+
+        if (str_contains($target, 'kendaraan') || str_contains($target, 'mobil') || str_contains($target, 'car') || str_contains($target, 'truk') || str_contains($target, 'diecast') || str_contains($target, 'hot wheels')) {
+            return 'Car';
+        }
+        if (str_contains($target, 'boneka') || str_contains($target, 'plush') || str_contains($target, 'teddy') || str_contains($target, 'heart') || str_contains($target, 'barbie')) {
+            return 'Heart';
+        }
+        if (str_contains($target, 'edukasi') || str_contains($target, 'edukatif') || str_contains($target, 'logic') || str_contains($target, 'belajar') || str_contains($target, 'brain') || str_contains($target, 'pintar')) {
+            return 'BrainCircuit';
+        }
+        if (str_contains($target, 'peran') || str_contains($target, 'roleplay') || str_contains($target, 'kostum') || str_contains($target, 'drama') || str_contains($target, 'theater') || str_contains($target, 'profesi') || str_contains($target, 'dapur') || str_contains($target, 'masak')) {
+            return 'Theater';
+        }
+        if (str_contains($target, 'renang') || str_contains($target, 'kacamata') || str_contains($target, 'swim') || str_contains($target, 'water') || str_contains($target, 'air') || str_contains($target, 'pantai') || str_contains($target, 'glasses') || str_contains($target, 'waves')) {
+            return 'Glasses';
+        }
+        if (str_contains($target, 'robot') || str_contains($target, 'action figure') || str_contains($target, 'figure') || str_contains($target, 'bot') || str_contains($target, 'gundam') || str_contains($target, 'hero') || str_contains($target, 'marvel') || str_contains($target, 'avengers')) {
+            return 'Bot';
+        }
+        if (str_contains($target, 'koleksi') || str_contains($target, 'hobi') || str_contains($target, 'hobby') || str_contains($target, 'kartu') || str_contains($target, 'trophy') || str_contains($target, 'gem') || str_contains($target, 'rare') || str_contains($target, 'board game') || str_contains($target, 'gamepad')) {
+            return 'Trophy';
+        }
+        if (str_contains($target, 'balok') || str_contains($target, 'lego') || str_contains($target, 'brick') || str_contains($target, 'blocks') || str_contains($target, 'susun')) {
+            return 'Blocks';
+        }
+        if (str_contains($target, 'sepeda') || str_contains($target, 'bike') || str_contains($target, 'outdoor') || str_contains($target, 'olahraga') || str_contains($target, 'skuter')) {
+            return 'Bike';
+        }
+        if (str_contains($target, 'seni') || str_contains($target, 'kreasi') || str_contains($target, 'lukis') || str_contains($target, 'gambar') || str_contains($target, 'palette') || str_contains($target, 'craft') || str_contains($target, 'warna')) {
+            return 'Palette';
+        }
+        if (str_contains($target, 'puzzle') || str_contains($target, 'teka-teki') || str_contains($target, 'rubik')) {
+            return 'Puzzle';
+        }
+        if (str_contains($target, 'bayi') || str_contains($target, 'balita') || str_contains($target, 'baby')) {
+            return 'Baby';
+        }
+
+        return 'LayoutGrid';
+    }
 
     /**
      * Display a listing of categories with product counts.
@@ -35,7 +68,7 @@ class CategoryController extends Controller
         $categories = Category::withCount('products')->get();
 
         $formatted = $categories->map(function ($cat) {
-            $icon = $this->iconMap[$cat->slug] ?? 'LayoutGrid';
+            $icon = $this->resolveIcon($cat->name, $cat->slug);
 
             return [
                 'id' => (string) $cat->id,
