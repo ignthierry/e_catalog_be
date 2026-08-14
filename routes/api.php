@@ -31,6 +31,7 @@ Route::prefix('')->group(function () {
     Route::get('/banners', [BannerController::class, 'index']);
     Route::get('/settings', [SettingController::class, 'index']);
     Route::get('/images/{filename}', [UploadController::class, 'serve']);
+    Route::get('/ftp-diagnostic', [UploadController::class, 'diagnostics']);
 
     // Auth
     Route::post('/auth/register', [AuthController::class, 'register']);
