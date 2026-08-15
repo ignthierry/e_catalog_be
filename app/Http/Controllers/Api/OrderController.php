@@ -61,18 +61,48 @@ class OrderController extends Controller
                     : (float) $product->base_price;
 
                 $variantId = null;
-                if (!empty($item['product_variant_id']) && is_numeric($item['product_variant_id'])) {
+                $quantity = (int) $item['quantity'];
+
+                // Validate & deduct stock for the selected variant
+                if (!empty($item['product_variant_id'])) {
                     $variant = ProductVariant::find($item['product_variant_id']);
-                    if ($variant) {
-                        $variantId = $variant->id;
-                        // Reduce stock if variant has stock
-                        if ($variant->stock >= $item['quantity']) {
-                            $variant->decrement('stock', $item['quantity']);
-                        }
+                    if (!$variant) {
+                        throw new \Illuminate\Validation\ValidationException(
+                            validator([], []),
+                            "Varian produk tidak ditemukan untuk produk '{$product->name}'."
+                        );
+                    }
+                    // Ensure variant belongs to the product being ordered
+                    if ((int) $variant->product_id !== (int) $product->id) {
+                        throw new \Illuminate\Validation\ValidationException(
+                            validator([], []),
+                            "Varian tidak sesuai dengan produk '{$product->name}'."
+                        );
+                    }
+                    $variantId = $variant->id;
+
+                    // Reject order if insufficient stock (prevent overselling)
+                    if ($variant->stock < $quantity) {
+                        throw new \Illuminate\Validation\ValidationException(
+                            validator([], []),
+                            "Stok varian '{$variant->name}' untuk produk '{$product->name}' tidak mencukupi (tersisa {$variant->stock}, diminta {$quantity})."
+                        );
+                    }
+                    $variant->decrement('stock', $quantity);
+                } elseif ($product->variants->isNotEmpty()) {
+                    // Product has variants but none selected — reject UNLESS all variants are
+                    // unnamed (legacy data where variant name is empty string).
+                    $hasNamedVariant = $product->variants->contains(fn($v) => trim((string) $v->name) !== '');
+                    if ($hasNamedVariant) {
+                        $variantNames = $product->variants->pluck('name')->filter(fn($n) => trim((string) $n) !== '')->implode(', ');
+                        $hint = $variantNames !== '' ? " Pilihan tersedia: {$variantNames}." : '';
+                        throw new \Illuminate\Validation\ValidationException(
+                            validator([], []),
+                            "Silakan pilih varian untuk produk '{$product->name}'.{$hint}"
+                        );
                     }
                 }
 
-                $quantity = (int) $item['quantity'];
                 $itemTotal = $price * $quantity;
                 $totalAmount += $itemTotal;
 
