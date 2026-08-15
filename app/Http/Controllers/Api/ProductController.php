@@ -425,11 +425,14 @@ class ProductController extends Controller
             ? $realSold 
             : (((is_numeric($product->id) ? (int)$product->id : crc32($product->id)) * 7 + 13) % 45 + 5);
 
-        // Transform variants for frontend with pricing support
+        // Transform variants for frontend with pricing support.
+        // Skip unnamed variants (legacy data where variant name is empty string)
+        // so the UI doesn't render an empty selector bar.
+        $namedVariants = $product->variants->filter(fn($v) => trim((string) $v->name) !== '')->values();
         $variants = [];
-        if ($product->variants->isNotEmpty()) {
-            $options = $product->variants->pluck('name')->toArray();
-            $variantItems = $product->variants->map(function ($v) use ($product) {
+        if ($namedVariants->isNotEmpty()) {
+            $options = $namedVariants->pluck('name')->toArray();
+            $variantItems = $namedVariants->map(function ($v) use ($product) {
                 $addPrice = (float) $v->additional_price;
                 return [
                     'id' => (string) $v->id,
