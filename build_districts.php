@@ -1,5 +1,26 @@
 <?php
-$apiKey = 'sk_9utxs5qa60bmkycnvokiqrnsyjon0dygkkg71f92c2gqvpmkhdjzaisrmvzikl2t';
+
+// Load .env if present
+if (file_exists(__DIR__ . '/.env')) {
+    $lines = file(__DIR__ . '/.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (str_starts_with(trim($line), '#') || !str_contains($line, '=')) continue;
+        [$k, $v] = explode('=', $line, 2);
+        $k = trim($k);
+        $v = trim(trim($v), '"\'');
+        if (!getenv($k)) {
+            putenv("{$k}={$v}");
+            $_ENV[$k] = $v;
+        }
+    }
+}
+
+$apiKey = getenv('BINDERBYTE_API_KEY') ?: ($_ENV['BINDERBYTE_API_KEY'] ?? null);
+
+if (!$apiKey) {
+    fwrite(STDERR, "Error: BINDERBYTE_API_KEY is not set in environment or .env file.\n");
+    exit(1);
+}
 
 $start = microtime(true);
 
@@ -95,8 +116,14 @@ foreach ($chunks as $chunkIdx => $chunk) {
     echo "Completed batch " . ($chunkIdx + 1) . "/" . count($chunks) . " (Total so far: " . count($allDistricts) . ")\n";
 }
 
-$outputFile = __DIR__ . '/storage/app/binderbyte_districts.json';
-@mkdir(dirname($outputFile), 0777, true);
-file_put_contents($outputFile, json_encode($allDistricts, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+$jsonData = json_encode($allDistricts, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
-echo "Successfully generated {$outputFile} with " . count($allDistricts) . " districts in " . round(microtime(true) - $start, 2) . "s\n";
+$outputFile1 = __DIR__ . '/storage/app/binderbyte_districts.json';
+@mkdir(dirname($outputFile1), 0777, true);
+file_put_contents($outputFile1, $jsonData);
+
+$outputFile2 = __DIR__ . '/database/data/binderbyte_districts.json';
+@mkdir(dirname($outputFile2), 0777, true);
+file_put_contents($outputFile2, $jsonData);
+
+echo "Successfully generated {$outputFile1} and {$outputFile2} with " . count($allDistricts) . " districts in " . round(microtime(true) - $start, 2) . "s\n";

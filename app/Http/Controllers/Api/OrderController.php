@@ -225,10 +225,17 @@ class OrderController extends Controller
         }
 
         $user = $request->user() ?: auth('sanctum')->user();
+
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Silakan login terlebih dahulu untuk melihat detail pesanan.',
+            ], 401);
+        }
         
         // Authorization check: Admin or Order Owner
-        $isOwner = $user && ((int) $order->user_id === (int) $user->id || $user->email === $order->customer_email);
-        $isAdmin = $user && in_array($user->role, ['admin', 'warehouse', 'cs']);
+        $isOwner = (int) $order->user_id === (int) $user->id || $user->email === $order->customer_email;
+        $isAdmin = in_array($user->role, ['admin', 'warehouse', 'cs']);
         
         // If not owner and not admin, block access
         if (!$isOwner && !$isAdmin) {

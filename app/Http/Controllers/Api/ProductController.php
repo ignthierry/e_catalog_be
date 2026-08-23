@@ -160,6 +160,7 @@ class ProductController extends Controller
             'original_price' => 'nullable|numeric|min:0',
             'originalPrice' => 'nullable|numeric|min:0',
             'weight_grams' => 'nullable|integer|min:0',
+            'weight' => 'nullable|integer|min:0',
             'category_id' => 'nullable',
             'stock' => 'nullable|integer|min:0',
             'images' => 'nullable|array',
@@ -174,13 +175,16 @@ class ProductController extends Controller
             $originalPrice = null;
         }
 
+        $weightGrams = (int) $request->input('weight_grams', $request->input('weight', 500));
+        if ($weightGrams <= 0) $weightGrams = 500;
+
         $product = Product::create([
             'name' => $validated['name'],
             'slug' => Str::slug($validated['name']) . '-' . uniqid(),
             'description' => $validated['description'] ?? '',
             'base_price' => $validated['price'],
             'original_price' => $originalPrice,
-            'weight_grams' => $validated['weight_grams'] ?? 500,
+            'weight_grams' => $weightGrams,
             'is_active' => $validated['is_active'] ?? true,
         ]);
 
@@ -272,6 +276,7 @@ class ProductController extends Controller
             'original_price' => 'nullable|numeric|min:0',
             'originalPrice' => 'nullable|numeric|min:0',
             'weight_grams' => 'nullable|integer|min:0',
+            'weight' => 'nullable|integer|min:0',
             'category_id' => 'nullable',
             'stock' => 'nullable|integer|min:0',
             'images' => 'nullable|array',
@@ -292,8 +297,9 @@ class ProductController extends Controller
             $origVal = $request->input('original_price', $request->input('originalPrice'));
             $product->original_price = (!empty($origVal) && is_numeric($origVal)) ? (float) $origVal : null;
         }
-        if (isset($validated['weight_grams'])) {
-            $product->weight_grams = $validated['weight_grams'];
+        if ($request->has('weight_grams') || $request->has('weight')) {
+            $weightVal = (int) $request->input('weight_grams', $request->input('weight'));
+            $product->weight_grams = $weightVal > 0 ? $weightVal : 500;
         }
         if (isset($validated['is_active'])) {
             $product->is_active = $validated['is_active'];
@@ -492,6 +498,9 @@ class ProductController extends Controller
             'sold' => (int) $soldCount,
             'isNew' => $product->created_at ? $product->created_at->diffInDays(now()) < 14 : true,
             'rating' => 4.9,
+            'weight' => (int) ($product->weight_grams ?: 500),
+            'weight_grams' => (int) ($product->weight_grams ?: 500),
+            'weightGrams' => (int) ($product->weight_grams ?: 500),
             'variants' => $variants,
             'createdAt' => $product->created_at ? $product->created_at->toISOString() : null,
         ];
