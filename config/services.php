@@ -31,11 +31,18 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'binderbyte' => [
+        'key' => env('BINDERBYTE_API_KEY', 'sk_9utxs5qa60bmkycnvokiqrnsyjon0dygkkg71f92c2gqvpmkhdjzaisrmvzikl2t'),
+        'base_url' => env('BINDERBYTE_BASE_URL', 'https://api.binderbyte.com'),
+        'origin_id' => env('BINDERBYTE_ORIGIN_ID', 'dist_35.15.07'), // Default Candi, Sidoarjo, Jawa Timur
+        'couriers' => env('BINDERBYTE_COURIERS', 'jne,jnt,jnt_cargo'), // JNE, JNT, and J&T Cargo
+    ],
+
     'rajaongkir' => [
         'key' => env('RAJAONGKIR_API_KEY', 'kFS41bAP695509c8c8419da3PY9irtKv'),
         'base_url' => env('RAJAONGKIR_BASE_URL', 'https://rajaongkir.komerce.id/api/v1'),
-        'origin_id' => env('RAJAONGKIR_ORIGIN_ID', 70894), // Default Candi, Sidoarjo, Jawa Timur
-        'couriers' => env('RAJAONGKIR_COURIERS', 'jne:jnt:sicepat:anteraja:ninja:pos'),
+        'origin_id' => env('RAJAONGKIR_ORIGIN_ID', 70894),
+        'couriers' => env('RAJAONGKIR_COURIERS', 'jne:jnt'),
     ],
 
 ];

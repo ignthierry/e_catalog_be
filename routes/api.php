@@ -46,9 +46,11 @@ Route::prefix('')->group(function () {
     Route::get('/orders/{id}', [OrderController::class, 'show']);
     Route::post('/orders/{id}/upload-proof', [OrderController::class, 'uploadProof']);
 
-    // Real-Time Shipping Rate Calculations
+    // Real-Time Shipping Rate Calculations & Tracking (BinderByte)
     Route::get('/shipping/destinations', [ShippingController::class, 'searchDestinations']);
     Route::post('/shipping/calculate-cost', [ShippingController::class, 'calculateCost']);
+    Route::get('/shipping/track', [ShippingController::class, 'trackAwb']);
+    Route::get('/shipping/couriers', [ShippingController::class, 'listCouriers']);
 });
 
 // Admin Operations (Public or Sanctum Protected)
