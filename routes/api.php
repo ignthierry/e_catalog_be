@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\ShippingController;
 use App\Http\Controllers\Api\ShopeeImportController;
+use App\Http\Controllers\Api\ReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -88,6 +89,10 @@ Route::prefix('admin')->group(function () {
     // Shopee Store Synchronization & Data Reset
     Route::post('/shopee/reset-and-import', [ShopeeImportController::class, 'resetAndImport']);
     Route::post('/shopee/clear-data', [ShopeeImportController::class, 'clearData']);
+
+    // Reports & Analytics Module
+    Route::get('/reports/analytics', [ReportController::class, 'getAnalytics']);
+    Route::get('/reports/export', [ReportController::class, 'exportData']);
 });
 
 // Member Account Settings & Profile Updates (Supports token in Authorization header)
