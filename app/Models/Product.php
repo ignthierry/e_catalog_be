@@ -17,12 +17,14 @@ class Product extends Model
         'slug',
         'description',
         'base_price',
+        'original_price',
         'weight_grams',
         'is_active',
     ];
 
     protected $casts = [
         'base_price' => 'float',
+        'original_price' => 'float',
         'weight_grams' => 'integer',
         'is_active' => 'boolean',
     ];

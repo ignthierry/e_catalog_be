@@ -71,6 +71,11 @@ class ProductController extends Controller
                       ->orderByDesc('order_items_sum_quantity')
                       ->orderByDesc('created_at');
                 break;
+            case 'discount':
+            case 'diskon':
+                $query->orderByRaw('(CASE WHEN original_price > base_price THEN ((original_price - base_price) / original_price) ELSE 0 END) DESC')
+                      ->orderBy('created_at', 'desc');
+                break;
             case 'newest':
             case 'terbaru':
                 $query->orderBy('created_at', 'desc');
@@ -152,6 +157,8 @@ class ProductController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
+            'original_price' => 'nullable|numeric|min:0',
+            'originalPrice' => 'nullable|numeric|min:0',
             'weight_grams' => 'nullable|integer|min:0',
             'category_id' => 'nullable',
             'stock' => 'nullable|integer|min:0',
@@ -160,11 +167,19 @@ class ProductController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
+        $originalPrice = $request->input('original_price', $request->input('originalPrice', null));
+        if (!empty($originalPrice) && is_numeric($originalPrice)) {
+            $originalPrice = (float) $originalPrice;
+        } else {
+            $originalPrice = null;
+        }
+
         $product = Product::create([
             'name' => $validated['name'],
             'slug' => Str::slug($validated['name']) . '-' . uniqid(),
             'description' => $validated['description'] ?? '',
             'base_price' => $validated['price'],
+            'original_price' => $originalPrice,
             'weight_grams' => $validated['weight_grams'] ?? 500,
             'is_active' => $validated['is_active'] ?? true,
         ]);
@@ -254,6 +269,8 @@ class ProductController extends Controller
             'name' => 'sometimes|required|string|max:255',
             'description' => 'nullable|string',
             'price' => 'sometimes|required|numeric|min:0',
+            'original_price' => 'nullable|numeric|min:0',
+            'originalPrice' => 'nullable|numeric|min:0',
             'weight_grams' => 'nullable|integer|min:0',
             'category_id' => 'nullable',
             'stock' => 'nullable|integer|min:0',
@@ -270,6 +287,10 @@ class ProductController extends Controller
         }
         if (isset($validated['price'])) {
             $product->base_price = $validated['price'];
+        }
+        if ($request->has('original_price') || $request->has('originalPrice')) {
+            $origVal = $request->input('original_price', $request->input('originalPrice'));
+            $product->original_price = (!empty($origVal) && is_numeric($origVal)) ? (float) $origVal : null;
         }
         if (isset($validated['weight_grams'])) {
             $product->weight_grams = $validated['weight_grams'];
@@ -451,13 +472,18 @@ class ProductController extends Controller
             ];
         }
 
+        $originalPrice = null;
+        if (!empty($product->original_price) && (float) $product->original_price > (float) $product->base_price) {
+            $originalPrice = (float) $product->original_price;
+        }
+
         return [
             'id' => (string) $product->id,
             'name' => $product->name,
             'slug' => $product->slug,
             'description' => $product->description ?? '',
             'price' => (float) $product->base_price,
-            'originalPrice' => null,
+            'originalPrice' => $originalPrice,
             'categoryId' => $primaryCategory ? (string) $primaryCategory->id : '1',
             'categoryName' => $primaryCategory ? $primaryCategory->name : 'Umum',
             'images' => $images,
