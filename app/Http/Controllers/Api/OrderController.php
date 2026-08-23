@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use App\Helpers\MediaHelper;
 use App\Services\ActivityLogger;
 
@@ -18,6 +19,8 @@ class OrderController extends Controller
 {
     /**
      * Create a new order (Customer Checkout).
+     * BUG-1 FIX: Product prices are strictly calculated from database.
+     * BUG-3 FIX: Throws ValidationException::withMessages for clean 422 errors.
      */
     public function store(Request $request): JsonResponse
     {
@@ -56,9 +59,10 @@ class OrderController extends Controller
 
             foreach ($validated['items'] as $item) {
                 $product = Product::with('variants')->findOrFail($item['product_id']);
-                $price = isset($item['price']) && $item['price'] > 0 
-                    ? (float) $item['price'] 
-                    : (float) $product->base_price;
+                
+                // BUG-1 FIX: Always calculate server-side price from database!
+                $basePrice = (float) $product->base_price;
+                $price = $basePrice;
 
                 $variantId = null;
                 $quantity = (int) $item['quantity'];
@@ -67,26 +71,25 @@ class OrderController extends Controller
                 if (!empty($item['product_variant_id'])) {
                     $variant = ProductVariant::find($item['product_variant_id']);
                     if (!$variant) {
-                        throw new \Illuminate\Validation\ValidationException(
-                            validator([], []),
-                            "Varian produk tidak ditemukan untuk produk '{$product->name}'."
-                        );
+                        // BUG-3 FIX: Use ValidationException::withMessages
+                        throw ValidationException::withMessages([
+                            'items' => "Varian produk tidak ditemukan untuk produk '{$product->name}'."
+                        ]);
                     }
                     // Ensure variant belongs to the product being ordered
                     if ((int) $variant->product_id !== (int) $product->id) {
-                        throw new \Illuminate\Validation\ValidationException(
-                            validator([], []),
-                            "Varian tidak sesuai dengan produk '{$product->name}'."
-                        );
+                        throw ValidationException::withMessages([
+                            'items' => "Varian tidak sesuai dengan produk '{$product->name}'."
+                        ]);
                     }
                     $variantId = $variant->id;
+                    $price += (float) ($variant->additional_price ?? 0);
 
                     // Reject order if insufficient stock (prevent overselling)
                     if ($variant->stock < $quantity) {
-                        throw new \Illuminate\Validation\ValidationException(
-                            validator([], []),
-                            "Stok varian '{$variant->name}' untuk produk '{$product->name}' tidak mencukupi (tersisa {$variant->stock}, diminta {$quantity})."
-                        );
+                        throw ValidationException::withMessages([
+                            'items' => "Stok varian '{$variant->name}' untuk produk '{$product->name}' tidak mencukupi (tersisa {$variant->stock}, diminta {$quantity})."
+                        ]);
                     }
                     $variant->decrement('stock', $quantity);
                 } elseif ($product->variants->isNotEmpty()) {
@@ -96,10 +99,9 @@ class OrderController extends Controller
                     if ($hasNamedVariant) {
                         $variantNames = $product->variants->pluck('name')->filter(fn($n) => trim((string) $n) !== '')->implode(', ');
                         $hint = $variantNames !== '' ? " Pilihan tersedia: {$variantNames}." : '';
-                        throw new \Illuminate\Validation\ValidationException(
-                            validator([], []),
-                            "Silakan pilih varian untuk produk '{$product->name}'.{$hint}"
-                        );
+                        throw ValidationException::withMessages([
+                            'items' => "Silakan pilih varian untuk produk '{$product->name}'.{$hint}"
+                        ]);
                     }
                 }
 
@@ -156,13 +158,13 @@ class OrderController extends Controller
 
     /**
      * Get Customer orders list.
+     * BUG-2 FIX: Customer only gets their own orders based on authenticated user session.
      */
     public function index(Request $request): JsonResponse
     {
         $user = $request->user() ?: auth('sanctum')->user();
 
-        // If guest and no filter provided, return empty list
-        if (!$user && !$request->filled('email') && !$request->filled('phone')) {
+        if (!$user) {
             return response()->json([
                 'status' => 'success',
                 'data' => [],
@@ -177,16 +179,9 @@ class OrderController extends Controller
         $query = Order::with(['items.product.images', 'items.variant'])
             ->orderBy('created_at', 'desc');
 
-        if ($user && $user->role === 'customer') {
-            $query->where(function ($q) use ($user) {
-                $q->where('user_id', $user->id)
-                  ->orWhere('customer_email', $user->email)
-                  ->orWhere('customer_phone', $user->phone_number);
-            });
-        } elseif ($request->filled('email')) {
-            $query->where('customer_email', $request->query('email'));
-        } elseif ($request->filled('phone')) {
-            $query->where('customer_phone', $request->query('phone'));
+        // Customers can strictly only view their own orders
+        if ($user->role === 'customer') {
+            $query->where('user_id', $user->id);
         }
 
         $orders = $query->paginate(20);
@@ -208,8 +203,9 @@ class OrderController extends Controller
 
     /**
      * Display a specific order by ID or order_number.
+     * BUG-2 FIX: Enforces authorization check. Only the order owner or admin can view order details.
      */
-    public function show($idOrNumber): JsonResponse
+    public function show(Request $request, $idOrNumber): JsonResponse
     {
         $order = Order::with(['items.product.images', 'items.variant', 'user'])
             ->where(function ($q) use ($idOrNumber) {
@@ -228,6 +224,20 @@ class OrderController extends Controller
             ], 404);
         }
 
+        $user = $request->user() ?: auth('sanctum')->user();
+        
+        // Authorization check: Admin or Order Owner
+        $isOwner = $user && ((int) $order->user_id === (int) $user->id || $user->email === $order->customer_email);
+        $isAdmin = $user && in_array($user->role, ['admin', 'warehouse', 'cs']);
+        
+        // If not owner and not admin, block access
+        if (!$isOwner && !$isAdmin) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda tidak memiliki akses untuk melihat pesanan ini.',
+            ], 403);
+        }
+
         return response()->json([
             'status' => 'success',
             'data' => $this->formatOrder($order),
@@ -236,6 +246,7 @@ class OrderController extends Controller
 
     /**
      * Upload / Update Payment Proof for an order.
+     * BUG-2 FIX: Enforces authentication & ownership verification.
      */
     public function uploadProof(Request $request, $id): JsonResponse
     {
@@ -243,9 +254,27 @@ class OrderController extends Controller
             'payment_proof' => 'required|string',
         ]);
 
+        $user = $request->user() ?: auth('sanctum')->user();
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Silakan login terlebih dahulu untuk mengunggah bukti transfer.',
+            ], 401);
+        }
+
         $order = Order::where('id', $id)
             ->orWhere('order_number', $id)
             ->firstOrFail();
+
+        // Authorization check
+        $isOwner = (int) $order->user_id === (int) $user->id || $user->email === $order->customer_email;
+        $isAdmin = in_array($user->role, ['admin', 'warehouse', 'cs']);
+        if (!$isOwner && !$isAdmin) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda tidak memiliki izin untuk mengunggah bukti pembayaran pesanan ini.',
+            ], 403);
+        }
 
         $order->payment_proof = $request->input('payment_proof');
         $order->payment_status = 'verifying';
@@ -324,6 +353,7 @@ class OrderController extends Controller
 
     /**
      * Admin: Update order status, payment status, AWB/tracking, notes.
+     * BUG-6 FIX: Consistent status flow when AWB is provided.
      */
     public function adminUpdateStatus(Request $request, $id): JsonResponse
     {
@@ -363,7 +393,7 @@ class OrderController extends Controller
 
         if (isset($validated['awb_number'])) {
             $order->awb_number = $validated['awb_number'];
-            if (!empty($validated['awb_number']) && $order->status === 'processing') {
+            if (!empty($validated['awb_number']) && in_array($order->status, ['processing', 'paid', 'pending'])) {
                 $order->status = 'shipped';
             }
         }

@@ -24,7 +24,10 @@ class ShippingController extends Controller
         }
 
         try {
-            $districtsFile = storage_path('app/binderbyte_districts.json');
+            $districtsFile = database_path('data/binderbyte_districts.json');
+            if (!file_exists($districtsFile)) {
+                $districtsFile = storage_path('app/binderbyte_districts.json');
+            }
 
             if (file_exists($districtsFile)) {
                 $districts = json_decode(file_get_contents($districtsFile), true) ?: [];
@@ -65,7 +68,7 @@ class ShippingController extends Controller
                 ]);
             }
 
-            // Fallback: If dataset file doesn't exist, return empty or fallback
+            // Fallback: If dataset file doesn't exist, query BinderByte API or return empty
             return response()->json([
                 'status' => 'success',
                 'data' => [],
